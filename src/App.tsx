@@ -23,6 +23,7 @@ export default function App() {
   const [loginMessage, setLoginMessage] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authToken, setAuthToken] = useState('');
   const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState('');
@@ -47,6 +48,7 @@ export default function App() {
       if (!response.ok) { setLoginMessage(result.error || 'Login gagal. Periksa kembali data akun.'); return; }
       const { error } = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
       if (error) { setLoginMessage('Sesi login tidak dapat disimpan. Silakan coba kembali.'); return; }
+      setAuthToken(result.access_token as string);
       setAuthUser(result.user as AuthUser);
       setPassword('');
       setLoginMessage('');
@@ -90,8 +92,7 @@ export default function App() {
     setUsersLoading(true);
     setUsersError('');
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-users', { headers: { Authorization: `Bearer ${token}` } });
       const result = await readApiResponse(response);
@@ -106,8 +107,7 @@ export default function App() {
     if (authUser?.role !== 'super_admin' || !supabase) return;
     setPage('wilayah'); setBranchesLoading(true); setBranchesError('');
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-branches', { headers: { Authorization: 'Bearer ' + token } });
       const result = await readApiResponse(response);
@@ -171,6 +171,7 @@ export default function App() {
   async function handleLogout() {
     if (supabase) await supabase.auth.signOut();
     setAuthUser(null);
+    setAuthToken('');
     setIdentifier('');
     setPassword('');
     setLoginMessage('');
