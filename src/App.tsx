@@ -23,7 +23,7 @@ export default function App() {
     </header>
 
     {page === 'beranda' && <>
-      <section className="hero">
+      <section className="hero page-enter">
         <div className="hero-copy">
           <div className="eyebrow"><i/>SISTEM DIGITAL UKT PSHT</div>
           <h1>Penilaian UKT yang<br/><em>tertib, akurat, dan terpadu.</em></h1>
@@ -37,25 +37,25 @@ export default function App() {
         <div className="hero-seal"><div className="seal-ring"><span>PSHT</span><b>TERATE</b><small>RANTING TULANGAN</small></div><p>Persaudaraan · Disiplin · Prestasi</p></div>
       </section>
 
-      <section className="quick-facts">
+      <section className="quick-facts page-enter delay-1">
         <div><Users/><b>3 Tingkat UKT</b><span>Polos · Jambon · Hijau</span></div>
         <div><CalendarDays/><b>Per kegiatan</b><span>Data dipisahkan per event</span></div>
         <div><Award/><b>Penilaian terstruktur</b><span>Rekap dan hasil terpusat</span></div>
       </section>
 
-      <section className="public-section">
+      <section className="public-section page-enter delay-2">
         <div className="section-heading"><div><div className="eyebrow">AGENDA RANTING</div><h2>Kegiatan UKT</h2></div><span className="muted-label">Berlangsung & akan datang</span></div>
         <div className="empty-state"><CalendarDays size={25}/><b>Belum ada kegiatan UKT yang ditampilkan</b><p>Informasi kegiatan akan muncul di sini setelah Admin membuat dan mempublikasikannya.</p></div>
       </section>
 
-      <section className="public-section gallery-section">
+      <section className="public-section gallery-section page-enter delay-2">
         <div className="section-heading"><div><div className="eyebrow">DOKUMENTASI</div><h2>Galeri UKT</h2></div><span className="muted-label">Foto kegiatan Ranting Tulangan</span></div>
         <div className="empty-state"><Images size={25}/><b>Galeri belum tersedia</b><p>Foto dokumentasi kegiatan akan ditampilkan di sini.</p></div>
       </section>
-      <section className="closing-cta"><div><div className="eyebrow">MULAI MENGGUNAKAN SISTEM</div><h2>Kelola penilaian dengan lebih terarah.</h2><p>Masuk menggunakan akun yang telah disetujui oleh Super Admin.</p></div><button className="btn btn-gold btn-large" onClick={() => setPage('login')}>Masuk ke Sistem <ArrowRight size={17}/></button></section>
+      <section className="closing-cta page-enter delay-3"><div><div className="eyebrow">MULAI MENGGUNAKAN SISTEM</div><h2>Kelola penilaian dengan lebih terarah.</h2><p>Masuk menggunakan akun yang telah disetujui oleh Super Admin.</p></div><button className="btn btn-gold btn-large" onClick={() => setPage('login')}>Masuk ke Sistem <ArrowRight size={17}/></button></section>
     </>}
 
-    {page === 'panduan' && <section className="content-page">
+    {page === 'panduan' && <section className="content-page page-enter">
       <div className="eyebrow">PUSAT INFORMASI</div><h1>Panduan Penggunaan</h1><p className="lead">Pilih panduan sesuai peran akun. Panduan rinci akan dilengkapi seiring penyelesaian setiap fitur.</p>
       <div className="guide-grid">
         <article><ShieldCheck/><h3>Super Admin</h3><p>Mengelola akun, persetujuan pendaftaran, hak akses, pengaturan sistem, audit, serta pencadangan.</p><span className="guide-link">Panduan Super Admin <ChevronRight size={15}/></span></article>
@@ -65,12 +65,12 @@ export default function App() {
       <div className="info-panel"><b>Catatan</b><p>Halaman panduan ini bersifat informatif. Prosedur operasional final akan disesuaikan dengan fitur yang sudah selesai dibangun dan diuji.</p></div>
     </section>}
 
-    {page === 'tentang' && <section className="content-page">
+    {page === 'tentang' && <section className="content-page page-enter">
       <div className="eyebrow">INFORMASI APLIKASI</div><h1>Tentang Aplikasi</h1><p className="lead">Sistem Penilaian UKT Ranting Tulangan versi 2.0 dikembangkan untuk mendukung pengelolaan kegiatan dan penilaian secara tertib, transparan, dan terstruktur.</p>
       <div className="about-grid"><div className="info-panel"><b>Identitas</b><p><strong>Nama:</strong> Sistem Penilaian UKT Ranting Tulangan</p><p><strong>Versi:</strong> 2.0.0 — tahap pengembangan</p><p><strong>Cakupan:</strong> Polos, Jambon, dan Hijau</p></div><div className="info-panel"><b>Teknologi</b><p>GitHub untuk pengelolaan kode, Vercel untuk hosting, dan Supabase yang akan digunakan untuk database serta autentikasi.</p><p>Informasi pengembang dan kontak pengelola akan ditambahkan pada tahap penyelesaian aplikasi.</p></div></div>
     </section>}
 
-    {(page === 'login' || page === 'daftar') && <section className="auth-wrap">
+    {(page === 'login' || page === 'daftar') && <section className="auth-wrap page-enter">
       <div className="auth-aside">
         <div className="eyebrow">SISTEM PENILAIAN UKT · RANTING TULANGAN</div>
         <h2>{page === 'login' ? <>Satu sistem untuk<br/><em>penilaian yang tertib.</em></> : <>Bergabung dalam<br/><em>pengelolaan UKT.</em></>}</h2>
@@ -90,7 +90,15 @@ export default function App() {
           <label>Username</label>
           <div className="username"><input required autoComplete="username" placeholder="Contoh: andi"/><span>@pshtranting.id</span></div>
           {page === 'daftar' && <>
-            <label>Asal ranting</label><input required placeholder="Masukkan asal ranting"/>
+            <label htmlFor="origin-rayon">Asal rayon</label>
+            <input id="origin-rayon" required placeholder="Ketik nama rayon"/>
+            <label htmlFor="origin-branch">Asal ranting</label>
+            <input id="origin-branch" required placeholder="Ketik nama ranting"/>
+            <label htmlFor="origin-cabang">Asal cabang</label>
+            <input id="origin-cabang" required placeholder="Ketik nama cabang"/>
+            <small className="field-hint">
+              Pastikan penulisan nama Rayon, Ranting, dan Cabang benar. Perubahan identitas setelah akun dibuat hanya dapat dilakukan oleh Super Admin.
+            </small>
           </>}
           <label>Password</label><input required type="password" autoComplete={page === 'login' ? 'current-password' : 'new-password'} placeholder={page === 'login' ? 'Masukkan password' : 'Buat password'}/>
           {page === 'daftar' && <>
