@@ -70,7 +70,14 @@ export default async function handler(req: Req, res: Res) {
     }
 
     const name = typeof req.body?.name === 'string' ? req.body.name.trim() : '';
-    const eventDate = typeof req.body?.event_date === 'string' ? req.body.event_date : '';
+    const rawEventDate = typeof req.body?.event_date === 'string' ? req.body.event_date.trim() : '';
+    const isoDateMatch = rawEventDate.match(/^(\d{4})-(\d{2})-(\d{2})(?:$|T)/);
+    const localDateMatch = rawEventDate.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    const eventDate = isoDateMatch
+      ? `${isoDateMatch[1]}-${isoDateMatch[2]}-${isoDateMatch[3]}`
+      : localDateMatch
+        ? `${localDateMatch[3]}-${localDateMatch[2].padStart(2, '0')}-${localDateMatch[1].padStart(2, '0')}`
+        : rawEventDate;
     const status = req.body?.status ?? 'persiapan';
     const allowedLevels = ['polos', 'jambon', 'hijau'];
     const rawLevels = Array.isArray(req.body?.levels) ? req.body.levels : [];
@@ -82,7 +89,13 @@ export default async function handler(req: Req, res: Res) {
     const branchIds = [...new Set(rawBranches.filter((id): id is string => typeof id === 'string' && id.length > 0))];
 
     if (!name || name.length > 160) return reply(res, 400, { error: 'Nama kegiatan wajib diisi (maksimal 160 karakter).' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || Number.isNaN(Date.parse(eventDate))) return reply(res, 400, { error: 'Tanggal kegiatan tidak valid.' });
+    const dateParts = eventDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    const validDate = dateParts ? (() => {
+      const year = Number(dateParts[1]), month = Number(dateParts[2]), day = Number(dateParts[3]);
+      const check = new Date(Date.UTC(year, month - 1, day));
+      return check.getUTCFullYear() === year && check.getUTCMonth() === month - 1 && check.getUTCDate() === day;
+    })() : false;
+    if (!validDate) return reply(res, 400, { error: 'Tanggal kegiatan tidak valid.', diagnostic: { received: rawEventDate || '(kosong)' } });
     if (!['persiapan', 'berlangsung', 'selesai'].includes(String(status))) return reply(res, 400, { error: 'Status kegiatan tidak valid.' });
     if (!levels.length || levels.some((item: any) => !allowedLevels.includes(item.level) || !Number.isFinite(item.passing_percentage) || item.passing_percentage < 0 || item.passing_percentage > 100)) {
       return reply(res, 400, { error: 'Pilih minimal satu tingkat UKT dan pastikan batas kelulusan 0–100%.' });
