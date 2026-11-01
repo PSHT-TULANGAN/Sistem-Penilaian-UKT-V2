@@ -160,10 +160,16 @@ export default function App() {
     setPage('kegiatan'); setEventsLoading(true); setEventsError('');
     try {
       if (!authToken) throw new Error('Sesi login berakhir. Silakan login kembali.');
-      const response = await fetch('/api/admin-events', { headers: { Authorization: 'Bearer ' + authToken, 'x-supabase-token': authToken } });
-      const result = await readApiResponse(response);
+      const headers = { Authorization: 'Bearer ' + authToken, 'x-supabase-token': authToken };
+      const [response, branchResponse] = await Promise.all([
+        fetch('/api/admin-events', { headers }),
+        fetch('/api/admin-branches', { headers })
+      ]);
+      const [result, branchResult] = await Promise.all([readApiResponse(response), readApiResponse(branchResponse)]);
       if (!response.ok) throw new Error(result.error || 'Daftar kegiatan gagal dimuat.');
+      if (!branchResponse.ok) throw new Error(branchResult.error || 'Daftar wilayah gagal dimuat.');
       setEvents(result.events ?? []);
+      setBranches(branchResult.branches ?? []);
     } catch (error) { setEventsError(error instanceof Error ? error.message : 'Gagal memuat kegiatan.'); }
     finally { setEventsLoading(false); }
   }
