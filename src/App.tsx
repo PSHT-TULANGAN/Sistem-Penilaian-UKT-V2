@@ -70,19 +70,40 @@ export default function App() {
       <div className="about-grid"><div className="info-panel"><b>Identitas</b><p><strong>Nama:</strong> Sistem Penilaian UKT Ranting Tulangan</p><p><strong>Versi:</strong> 2.0.0 — tahap pengembangan</p><p><strong>Cakupan:</strong> Polos, Jambon, dan Hijau</p></div><div className="info-panel"><b>Teknologi</b><p>GitHub untuk pengelolaan kode, Vercel untuk hosting, dan Supabase yang akan digunakan untuk database serta autentikasi.</p><p>Informasi pengembang dan kontak pengelola akan ditambahkan pada tahap penyelesaian aplikasi.</p></div></div>
     </section>}
 
-    {(page === 'login' || page === 'daftar') && <section className="auth-wrap"><div className="auth-card">
-      <div className="auth-icon"><ShieldCheck/></div><div className="eyebrow">{page === 'login' ? 'AREA PENGGUNA' : 'PENDAFTARAN PENGGUNA'}</div>
-      <h1>{page === 'login' ? 'Selamat datang' : 'Buat akun'}</h1><p>{page === 'login' ? 'Masuk untuk melanjutkan ke sistem penilaian.' : 'Pendaftaran akun memerlukan persetujuan Super Admin.'}</p>
-      <form onSubmit={e => e.preventDefault()}>
-        <label>Username</label><div className="username"><input placeholder="Masukkan username"/><span>@pshtranting.id</span></div>
-        {page === 'daftar' && <><label>Nama lengkap</label><input placeholder="Nama lengkap"/><label>Nama panggilan</label><input placeholder="Nama panggilan"/><label>Asal ranting</label><input placeholder="Asal ranting"/></>}
-        <label>Password</label><input type="password" placeholder="Masukkan password"/>
-        {page === 'daftar' && <><label>Konfirmasi password</label><input type="password" placeholder="Ulangi password"/></>}
-        <button className="btn btn-gold submit">{page === 'login' ? 'Login' : 'Daftar Akun'}</button>
-      </form>
-      <div className="auth-foot">{page === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'} <button onClick={() => setPage(page === 'login' ? 'daftar' : 'login')}>{page === 'login' ? 'Daftar sekarang' : 'Login'}</button></div>
-      <small className="notice">Autentikasi belum diaktifkan. Jangan gunakan formulir ini untuk memasukkan kredensial sungguhan.</small>
-    </div></section>}
+    {(page === 'login' || page === 'daftar') && <section className="auth-wrap">
+      <div className="auth-aside">
+        <div className="eyebrow">SISTEM PENILAIAN UKT · RANTING TULANGAN</div>
+        <h2>{page === 'login' ? <>Satu sistem untuk<br/><em>penilaian yang tertib.</em></> : <>Bergabung dalam<br/><em>pengelolaan UKT.</em></>}</h2>
+        <p>Akses diberikan sesuai peran dan kewenangan akun. Setiap pendaftaran akan diperiksa oleh Super Admin sebelum akun dapat digunakan.</p>
+        <div className="auth-assurance"><ShieldCheck size={18}/>Akun dan data pengguna dikelola secara terkontrol.</div>
+      </div>
+      <div className="auth-card">
+        <div className="auth-icon"><ShieldCheck size={25}/></div>
+        <div className="eyebrow">{page === 'login' ? 'AREA PENGGUNA' : 'PENDAFTARAN PENGGUNA'}</div>
+        <h1>{page === 'login' ? 'Selamat datang' : 'Daftar akun'}</h1>
+        <p>{page === 'login' ? 'Masukkan username dan password untuk melanjutkan.' : 'Lengkapi informasi berikut. Akun akan menunggu persetujuan Super Admin.'}</p>
+        <form onSubmit={e => e.preventDefault()}>
+          {page === 'daftar' && <>
+            <label>Nama lengkap</label><input required placeholder="Masukkan nama lengkap"/>
+            <label>Nama panggilan</label><input required placeholder="Masukkan nama panggilan"/>
+          </>}
+          <label>Username</label>
+          <div className="username"><input required autoComplete="username" placeholder="Contoh: andi"/><span>@pshtranting.id</span></div>
+          {page === 'daftar' && <>
+            <label>Asal ranting</label><input required placeholder="Masukkan asal ranting"/>
+          </>}
+          <label>Password</label><input required type="password" autoComplete={page === 'login' ? 'current-password' : 'new-password'} placeholder={page === 'login' ? 'Masukkan password' : 'Buat password'}/>
+          {page === 'daftar' && <>
+            <label>Konfirmasi password</label><input required type="password" autoComplete="new-password" placeholder="Ulangi password"/>
+          </>}
+          {page === 'login' && <div className="forgot-note">Lupa password? Hubungi Super Admin untuk meminta reset akun.</div>}
+          <button className="btn btn-gold submit" type="submit">{page === 'login' ? 'Login' : 'Kirim Pendaftaran'} <ArrowRight size={16}/></button>
+        </form>
+        <div className="auth-foot">{page === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'} <button onClick={() => setPage(page === 'login' ? 'daftar' : 'login')}>{page === 'login' ? 'Daftar sekarang' : 'Login'}</button></div>
+        {page === 'daftar' && <div className="pending-note"><b>Setelah mendaftar</b><span>Status akun menjadi Menunggu Persetujuan. Kamu baru dapat login setelah disetujui Super Admin.</span></div>}
+        <small className="notice">Formulir ini masih tampilan awal. Autentikasi belum diaktifkan; jangan masukkan password sungguhan.</small>
+      </div>
+    </section>}
 
     <footer><b>PSHT · RANTING TULANGAN</b><span>Sistem Penilaian UKT · V2.0</span></footer>
   </main>;
