@@ -111,7 +111,13 @@ export default function App() {
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-branches', { headers: { Authorization: 'Bearer ' + token } });
       const result = await readApiResponse(response);
-      if (!response.ok) throw new Error(result.error || 'Data wilayah gagal dimuat.');
+      if (!response.ok) {
+        const diagnostic = result.diagnostic;
+        const detail = diagnostic
+          ? ` [${diagnostic.code ?? 'NO_CODE'}] ${diagnostic.message ?? ''}${diagnostic.hint ? ' — ' + diagnostic.hint : ''}`
+          : '';
+        throw new Error((result.error || 'Data wilayah gagal dimuat.') + detail);
+      }
       setBranches(result.branches ?? []);
     } catch (error) { setBranchesError(error instanceof Error ? error.message : 'Gagal memuat wilayah.'); }
     finally { setBranchesLoading(false); }
