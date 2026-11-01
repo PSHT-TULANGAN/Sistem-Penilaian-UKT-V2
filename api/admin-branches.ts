@@ -8,7 +8,7 @@ const reply = (res: Res, status: number, body: unknown) => res.status(status).js
 function getToken(req: Req) {
   const raw = req.headers?.authorization ?? req.headers?.Authorization;
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return typeof value === 'string' ? value.match(/^Bearer\\s+(.+)$/i)?.[1] ?? null : null;
+  return typeof value === 'string' ? value.match(/^Bearer\s+(.+)$/i)?.[1] ?? null : null;
 }
 
 export default async function handler(req: Req, res: Res) {
