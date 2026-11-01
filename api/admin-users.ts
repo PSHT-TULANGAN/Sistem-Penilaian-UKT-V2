@@ -43,10 +43,9 @@ export default async function handler(req: Req, res: Res) {
   const token = bearerToken(req);
   if (!token) return reply(res, 401, { error: 'Sesi login tidak ditemukan.' });
 
-  const auth = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-
   try {
+    const auth = createClient(url, anonKey, { auth: { autoRefreshToken: false, persistSession: false } });
+    const admin = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
     const { data: authData, error: authError } = await auth.auth.getUser(token);
     if (authError || !authData.user) return reply(res, 401, { error: 'Sesi login tidak valid atau telah berakhir.' });
 
