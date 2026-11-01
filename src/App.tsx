@@ -2,9 +2,9 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from './lib-supabase';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
-type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna';
+type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna' | 'wilayah';
 type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
-type AuthUser = { id: string; full_name: string; username: string; role: string };
+type AuthUser = { id: string; full_name: string; username: string; role: string };\ntype Branch = { id: string; name: string; type: 'cabang' | 'ranting' | 'rayon'; parent_id: string | null; is_active: boolean; created_at: string };
 
 async function readApiResponse(response: Response): Promise<any> {
   const raw = await response.text();
@@ -26,7 +26,7 @@ export default function App() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState('');
   const [usersQuery, setUsersQuery] = useState('');
-  const [userActionBusy, setUserActionBusy] = useState('');
+  const [userActionBusy, setUserActionBusy] = useState('');\n  const [branches, setBranches] = useState<Branch[]>([]);\n  const [branchesLoading, setBranchesLoading] = useState(false);\n  const [branchesError, setBranchesError] = useState('');\n  const [branchName, setBranchName] = useState('');\n  const [branchType, setBranchType] = useState<'cabang' | 'ranting' | 'rayon'>('cabang');\n  const [branchParent, setBranchParent] = useState('');\n  const [branchBusy, setBranchBusy] = useState(false);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -94,6 +94,37 @@ export default function App() {
     } finally { setUsersLoading(false); }
   }
 
+  async function openBranchManagement() {
+    if (authUser?.role !== 'super_admin' || !supabase) return;
+    setPage('wilayah'); setBranchesLoading(true); setBranchesError('');
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-branches', { headers: { Authorization: 'Bearer ' + token } });
+      const result = await readApiResponse(response);
+      if (!response.ok) throw new Error(result.error || 'Data wilayah gagal dimuat.');
+      setBranches(result.branches ?? []);
+    } catch (error) { setBranchesError(error instanceof Error ? error.message : 'Gagal memuat wilayah.'); }
+    finally { setBranchesLoading(false); }
+  }
+
+  async function handleCreateBranch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || authUser?.role !== 'super_admin') return;
+    setBranchBusy(true); setBranchesError('');
+    try {
+      const session = await supabase.auth.getSession();
+      const token = session.data.session?.access_token;
+      if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-branches', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: branchName, type: branchType, parent_id: branchType === 'cabang' ? null : branchParent }) });
+      const result = await readApiResponse(response);
+      if (!response.ok) throw new Error(result.error || 'Wilayah gagal disimpan.');
+      setBranchName(''); setBranchParent(''); await openBranchManagement();
+    } catch (error) { setBranchesError(error instanceof Error ? error.message : 'Gagal menyimpan wilayah.'); }
+    finally { setBranchBusy(false); }
+  }
+
   async function handleUserAction(userId: string, action: 'approve' | 'reject' | 'suspend') {
     if (!supabase || authUser?.role !== 'super_admin') return;
     const labels = { approve: 'menyetujui', reject: 'menolak', suspend: 'menangguhkan' };
@@ -152,6 +183,7 @@ export default function App() {
       </div>
       <div className="dashboard-grid">
         {authUser.role === 'super_admin' ? <button className="dashboard-module" onClick={openUserManagement}><Users/><b>Pengelolaan Pengguna</b><p>Kelola akun, role, dan persetujuan pendaftaran pengguna.</p><span>Buka modul <ArrowRight size={14}/></span></button> : <article><Users/><b>Pengelolaan Pengguna</b><p>Modul ini hanya dapat diakses Super Admin.</p><span>Akses terbatas</span></article>}
+        {authUser.role === 'super_admin' && <button className="dashboard-module" onClick={openBranchManagement}><ShieldCheck/><b>Pengelolaan Wilayah</b><p>Atur hierarki Cabang, Ranting, dan Rayon.</p><span>Buka modul <ArrowRight size={14}/></span></button>}
         <article><CalendarDays/><b>Kegiatan UKT</b><p>Kelola kegiatan UKT dan cakupan tingkat penilaian.</p><span>Belum diaktifkan</span></article>
         <article><ClipboardList/><b>Penilaian</b><p>Pantau proses penilaian dan hasil peserta.</p><span>Belum diaktifkan</span></article>
       </div>
@@ -187,6 +219,22 @@ export default function App() {
       <div className="info-panel dashboard-notice"><b>Perlindungan akun</b><p>Akun Super Admin tidak dapat diubah statusnya melalui modul ini. Perubahan status pengguna dicatat dengan identitas Super Admin dan waktu peninjauan.</p></div>
     </section>}
 
+    {page === 'wilayah' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
+      <button className="btn btn-outline" onClick={() => setPage('dashboard')}>← Kembali ke Dashboard</button>
+      <div className="eyebrow" style={{marginTop:28}}>ADMINISTRASI SISTEM</div><h1>Pengelolaan Wilayah</h1>
+      <p className="lead">Susun hierarki wilayah Cabang, Ranting, dan Rayon.</p>
+      {branchesError && <div className="info-panel users-error" role="alert">{branchesError}</div>}
+      <form className="branch-form" onSubmit={handleCreateBranch}>
+        <label htmlFor="branch-type">Tingkat wilayah</label>
+        <select id="branch-type" value={branchType} onChange={e => { setBranchType(e.target.value as 'cabang' | 'ranting' | 'rayon'); setBranchParent(''); }}><option value="cabang">Cabang</option><option value="ranting">Ranting</option><option value="rayon">Rayon</option></select>
+        {branchType !== 'cabang' && <><label htmlFor="branch-parent">{branchType === 'ranting' ? 'Cabang induk' : 'Ranting induk'}</label><select id="branch-parent" required value={branchParent} onChange={e => setBranchParent(e.target.value)}><option value="">Pilih wilayah induk</option>{branches.filter(b => b.type === (branchType === 'ranting' ? 'cabang' : 'ranting') && b.is_active).map(b => <option key={b.id} value={b.id}>{b.name}</option>)}</select></>}
+        <label htmlFor="branch-name">Nama wilayah</label><input id="branch-name" required maxLength={120} value={branchName} onChange={e => setBranchName(e.target.value)} placeholder="Masukkan nama wilayah"/>
+        <button className="btn btn-gold" type="submit" disabled={branchBusy || (branchType !== 'cabang' && !branchParent)}>{branchBusy ? 'Menyimpan...' : 'Tambah Wilayah'}</button>
+      </form>
+      <div className="users-toolbar"><button className="btn btn-outline" onClick={openBranchManagement} disabled={branchesLoading}>Muat ulang</button></div>
+      {branchesLoading ? <div className="empty-state">Memuat data wilayah...</div> : <div className="branch-list">{(['cabang','ranting','rayon'] as const).map(type => <section className="branch-group" key={type}><h3>{type.charAt(0).toUpperCase() + type.slice(1)}</h3>{branches.filter(b => b.type === type).length === 0 ? <p className="muted-label">Belum ada data {type}.</p> : branches.filter(b => b.type === type).map(b => <div className="branch-item" key={b.id}><b>{b.name}</b><span>{b.is_active ? 'Aktif' : 'Nonaktif'}</span></div>)}</section>)}</div>}
+      <div className="info-panel dashboard-notice"><b>Catatan</b><p>Untuk tahap ini tersedia penambahan dan penayangan wilayah. Pengubahan dan penghapusan akan ditambahkan setelah relasi data diuji.</p></div>
+    </section>}
     {page === 'beranda' && <>
       <section className="hero page-enter">
         <div className="hero-copy">
