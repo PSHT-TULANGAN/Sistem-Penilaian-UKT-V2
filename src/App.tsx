@@ -2,11 +2,11 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from './lib-supabase';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
-type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna' | 'wilayah' | 'kegiatan';
+type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna' | 'wilayah' | 'kegiatan' | 'peserta';
 type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
 type AuthUser = { id: string; full_name: string; username: string; role: string };
 type Branch = { id: string; name: string; type: 'cabang' | 'ranting' | 'rayon'; parent_id: string | null; is_active: boolean; created_at: string };
-type UktEvent = { id: string; name: string; event_date: string; status: string; levels: { level: string; passing_percentage: number }[]; branches: { id: string; name: string; type: string }[] };
+type UktEvent = { id: string; name: string; event_date: string; status: string; levels: { level: string; passing_percentage: number }[]; branches: { id: string; name: string; type: string }[] };\ntype Participant = { id: string; event_id: string; level: string; branch_id: string; participant_number: number; full_name: string; branch: { id: string; name: string; type: string } | null };
 
 async function readApiResponse(response: Response): Promise<any> {
   const raw = await response.text();
@@ -45,7 +45,7 @@ export default function App() {
   const [eventLevels, setEventLevels] = useState<string[]>(['polos', 'jambon', 'hijau']);
   const [eventPass, setEventPass] = useState<Record<string, string>>({ polos: '50', jambon: '50', hijau: '50' });
   const [eventBranches, setEventBranches] = useState<string[]>([]);
-  const [eventBusy, setEventBusy] = useState(false);
+  const [eventBusy, setEventBusy] = useState(false);\n  const [selectedEventId, setSelectedEventId] = useState('');\n  const [participants, setParticipants] = useState<Participant[]>([]);\n  const [participantsLoading, setParticipantsLoading] = useState(false);\n  const [participantsError, setParticipantsError] = useState('');\n  const [participantName, setParticipantName] = useState('');\n  const [participantLevel, setParticipantLevel] = useState('');\n  const [participantBranch, setParticipantBranch] = useState('');\n  const [participantBusy, setParticipantBusy] = useState(false);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -172,6 +172,36 @@ export default function App() {
       setBranches(branchResult.branches ?? []);
     } catch (error) { setEventsError(error instanceof Error ? error.message : 'Gagal memuat kegiatan.'); }
     finally { setEventsLoading(false); }
+  }
+
+  async function openParticipants(eventId: string) {
+    if (!supabase || authUser?.role !== 'super_admin') return;
+    setSelectedEventId(eventId); setPage('peserta'); setParticipantsLoading(true); setParticipantsError('');
+    try {
+      if (!authToken) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-participants?event_id=' + encodeURIComponent(eventId), { headers: { Authorization: 'Bearer ' + authToken, 'x-supabase-token': authToken } });
+      const result = await readApiResponse(response);
+      if (!response.ok) { const d = result.diagnostic; throw new Error((result.error || 'Daftar peserta gagal dimuat.') + (d ? ' [' + (d.code ?? '') + '] ' + (d.message ?? '') : '')); }
+      setParticipants(result.participants ?? []);
+      const selected = events.find(item => item.id === eventId);
+      setParticipantLevel(selected?.levels?.[0]?.level ?? '');
+      setParticipantBranch(selected?.branches?.[0]?.id ?? '');
+    } catch (error) { setParticipantsError(error instanceof Error ? error.message : 'Gagal memuat peserta.'); }
+    finally { setParticipantsLoading(false); }
+  }
+
+  async function handleCreateParticipant(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || authUser?.role !== 'super_admin' || !selectedEventId) return;
+    setParticipantBusy(true); setParticipantsError('');
+    try {
+      if (!authToken) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-participants', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken, 'x-supabase-token': authToken }, body: JSON.stringify({ event_id: selectedEventId, full_name: participantName, level: participantLevel, branch_id: participantBranch }) });
+      const result = await readApiResponse(response);
+      if (!response.ok) { const d = result.diagnostic; throw new Error((result.error || 'Peserta gagal ditambahkan.') + (d ? ' [' + (d.code ?? '') + '] ' + (d.message ?? '') : '')); }
+      setParticipantName(''); await openParticipants(selectedEventId);
+    } catch (error) { setParticipantsError(error instanceof Error ? error.message : 'Gagal menambahkan peserta.'); }
+    finally { setParticipantBusy(false); }
   }
 
   async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
@@ -316,8 +346,27 @@ export default function App() {
       <div className="users-toolbar"><button className="btn btn-outline" onClick={openEvents} disabled={eventsLoading}>Muat ulang kegiatan</button><button className="btn btn-outline" onClick={openBranchManagement}>Muat ulang wilayah</button></div>
       {eventsLoading ? <div className="empty-state">Memuat kegiatan...</div> : <div className="users-list">{events.map(item => <article className="user-row" key={item.id}>
         <div className="user-main"><div className="user-avatar"><CalendarDays size={19}/></div><div><b>{item.name}</b><span>{new Date(item.event_date + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })} · {item.status}</span><small>{item.levels.map(level => level.level.charAt(0).toUpperCase() + level.level.slice(1) + ' (' + level.passing_percentage + '%)').join(' · ')}</small><small>{item.branches.map(branch => branch.name).join(', ')}</small></div></div>
-      </article>)}{events.length === 0 && <div className="empty-state">Belum ada kegiatan UKT.</div>}</div>}
+        <div className="user-actions"><button className="btn btn-gold" onClick={() => openParticipants(item.id)}>Kelola Peserta</button></div>\n      </article>)}{events.length === 0 && <div className="empty-state">Belum ada kegiatan UKT.</div>}</div>}
       <div className="info-panel dashboard-notice"><b>Status tahap pertama</b><p>Pembuatan dan penayangan kegiatan sudah disiapkan. Pengubahan, penghapusan, pengelolaan peserta, dan proses penilaian akan dibuat pada tahap berikutnya.</p></div>
+    </section>}
+    {page === 'peserta' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
+      <button className="btn btn-outline" onClick={openEvents}>← Kembali ke Kegiatan</button>
+      <div className="eyebrow" style={{marginTop:28}}>PENGELOLAAN PESERTA</div><h1>Peserta UKT</h1>
+      <p className="lead">Tambahkan peserta secara manual. Nomor peserta dibuat otomatis berdasarkan kegiatan dan tingkat UKT.</p>
+      {participantsError && <div className="info-panel users-error" role="alert">{participantsError}</div>}
+      {(() => { const selected = events.find(item => item.id === selectedEventId); return selected ? <>
+        <div className="info-panel"><b>{selected.name}</b><p>{new Date(selected.event_date + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })} · Status: {selected.status}</p></div>
+        {selected.status !== 'selesai' && <form className="branch-form" onSubmit={handleCreateParticipant}>
+          <label htmlFor="participant-name">Nama lengkap peserta</label><input id="participant-name" required maxLength={160} value={participantName} onChange={e => setParticipantName(e.target.value)} placeholder="Masukkan nama lengkap"/>
+          <label htmlFor="participant-level">Tingkat UKT</label><select id="participant-level" required value={participantLevel} onChange={e => setParticipantLevel(e.target.value)}>{selected.levels.map(item => <option key={item.level} value={item.level}>{item.level.charAt(0).toUpperCase() + item.level.slice(1)}</option>)}</select>
+          <label htmlFor="participant-branch">Asal wilayah</label><select id="participant-branch" required value={participantBranch} onChange={e => setParticipantBranch(e.target.value)}>{selected.branches.map(item => <option key={item.id} value={item.id}>{item.type.charAt(0).toUpperCase() + item.type.slice(1)} — {item.name}</option>)}</select>
+          <button className="btn btn-gold" type="submit" disabled={participantBusy || !selected.levels.length || !selected.branches.length}>{participantBusy ? 'Menyimpan...' : 'Tambah Peserta'}</button>
+        </form>}
+        <div className="users-toolbar"><button className="btn btn-outline" onClick={() => openParticipants(selectedEventId)} disabled={participantsLoading}>Muat ulang peserta</button><span className="muted-label">Total: {participants.length} peserta</span></div>
+        {participantsLoading ? <div className="empty-state">Memuat peserta...</div> : <div className="users-list">{participants.map(item => <article className="user-row" key={item.id}>
+          <div className="user-main"><div className="user-avatar"><Users size={19}/></div><div><b>{item.participant_number}. {item.full_name}</b><span>{item.level.charAt(0).toUpperCase() + item.level.slice(1)} · {item.branch?.name ?? 'Wilayah tidak diketahui'}</span></div></div>
+        </article>)}{participants.length === 0 && <div className="empty-state">Belum ada peserta pada kegiatan ini.</div>}</div>}
+      </> : <div className="empty-state">Kegiatan tidak ditemukan. Kembali ke daftar kegiatan.</div>; })()}
     </section>}
     {page === 'wilayah' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
       <button className="btn btn-outline" onClick={() => setPage('dashboard')}>← Kembali ke Dashboard</button>
