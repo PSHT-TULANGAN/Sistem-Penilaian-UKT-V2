@@ -45,8 +45,20 @@ export default async function handler(req: Req, res: Res) {
         .select('id, name, type, parent_id, is_active, created_at')
         .order('name', { ascending: true });
       if (error) {
-        console.error('[admin-branches] list failed:', error.message);
-        return reply(res, 503, { error: 'Data wilayah gagal dibaca.' });
+        console.error('[admin-branches] list failed:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        return reply(res, 503, {
+          error: 'Data wilayah gagal dibaca.',
+          diagnostic: {
+            code: error.code ?? null,
+            message: error.message ?? null,
+            hint: error.hint ?? null
+          }
+        });
       }
       return reply(res, 200, { branches: data ?? [] });
     }
