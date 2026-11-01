@@ -66,24 +66,24 @@ export default async function handler(req: Req, res: Res) {
     }
 
     if (req.method === 'GET') {
-      const [profiles, roles, approvals, branches] = await Promise.all([
+      const [profiles, roles, approvals] = await Promise.all([
         admin.from('profiles').select('id, username, full_name, nickname, rayon_id, ranting_id, cabang_id, status, must_change_password, created_at').order('created_at', { ascending: false }).limit(500),
         admin.from('user_roles').select('user_id, role'),
-        admin.from('account_approvals').select('user_id, status, reviewed_at, notes'),
-        admin.from('branches').select('id, name, type')
+        admin.from('account_approvals').select('user_id, status, reviewed_at, notes')
       ]);
-      if (profiles.error || roles.error || approvals.error || branches.error) {
+      if (profiles.error || roles.error || approvals.error) {
         console.error('[admin-users] list query failed', {
           profiles: profiles.error?.message, roles: roles.error?.message,
-          approvals: approvals.error?.message, branches: branches.error?.message
+          approvals: approvals.error?.message
         });
-        const failed = [profiles.error && 'profiles', roles.error && 'user_roles', approvals.error && 'account_approvals', branches.error && 'branches'].filter(Boolean);
-        console.error('[admin-users] list query failed', { failed, profiles: profiles.error?.message, roles: roles.error?.message, approvals: approvals.error?.message, branches: branches.error?.message });
+        const failed = [profiles.error && 'profiles', roles.error && 'user_roles', approvals.error && 'account_approvals'].filter(Boolean);
+        console.error('[admin-users] list query failed', { failed, profiles: profiles.error?.message, roles: roles.error?.message, approvals: approvals.error?.message });
         return reply(res, 503, { error: 'Gagal membaca tabel: ' + failed.join(', '), code: 'USER_LIST_QUERY_FAILED' });
       }
       const roleMap = new Map((roles.data ?? []).map(item => [item.user_id, item.role]));
       const approvalMap = new Map((approvals.data ?? []).map(item => [item.user_id, item]));
-      const branchMap = new Map((branches.data ?? []).map(item => [item.id, item]));
+      // Branch metadata is optional; do not block account management when branch lookup is unavailable.
+      const branchMap = new Map<string, { id: string; name: string }>();
       const users = (profiles.data ?? []).map(item => ({
         ...item,
         role: roleMap.get(item.id) ?? 'tester',
