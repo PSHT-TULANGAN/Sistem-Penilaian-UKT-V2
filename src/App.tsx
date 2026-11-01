@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type FormEvent } from 'react';
+import { supabase } from './lib-supabase';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
 type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar';
@@ -6,7 +7,28 @@ type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar';
 export default function App() {
   const [page, setPage] = useState<Page>('beranda');
   const [dark, setDark] = useState(false);
-    const [connection, setConnection] = useState('Memeriksa...');
+  const [connection, setConnection] = useState('Memeriksa...');
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginMessage, setLoginMessage] = useState('');
+  const [loginBusy, setLoginBusy] = useState(false);
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setLoginMessage('');
+    if (!supabase) { setLoginMessage('Konfigurasi Supabase belum tersedia.'); return; }
+    setLoginBusy(true);
+    try {
+      const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password }) });
+      const result = await response.json();
+      if (!response.ok) { setLoginMessage(result.error || 'Login gagal. Periksa kembali data akun.'); return; }
+      const { error } = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
+      if (error) { setLoginMessage('Sesi login tidak dapat disimpan. Silakan coba kembali.'); return; }
+      setLoginMessage('Login berhasil. Sesi akun telah aktif.');
+    } catch {
+      setLoginMessage('Tidak dapat menghubungi server login. Coba beberapa saat lagi.');
+    } finally { setLoginBusy(false); }
+  }
 
   useEffect(() => {
     let active = true;
@@ -111,14 +133,19 @@ export default function App() {
         <div className="auth-icon"><ShieldCheck size={25}/></div>
         <div className="eyebrow">{page === 'login' ? 'AREA PENGGUNA' : 'PENDAFTARAN PENGGUNA'}</div>
         <h1>{page === 'login' ? 'Selamat datang' : 'Daftar akun'}</h1>
-        <p>{page === 'login' ? 'Masukkan username dan password untuk melanjutkan.' : 'Lengkapi informasi berikut. Akun akan menunggu persetujuan Super Admin.'}</p>
-        <form onSubmit={e => e.preventDefault()}>
+        <p>{page === 'login' ? 'Masukkan email atau username dan password untuk melanjutkan.' : 'Lengkapi informasi berikut. Akun akan menunggu persetujuan Super Admin.'}</p>
+        <form onSubmit={page === 'login' ? handleLogin : e => e.preventDefault()}>
           {page === 'daftar' && <>
             <label>Nama lengkap</label><input required placeholder="Masukkan nama lengkap"/>
             <label>Nama panggilan</label><input required placeholder="Masukkan nama panggilan"/>
           </>}
-          <label>Username</label>
-          <div className="username"><input required autoComplete="username" placeholder="Contoh: andi"/><span>@pshtranting.id</span></div>
+          {page === 'login' ? <>
+            <label htmlFor="login-identifier">Email atau Username</label>
+            <input id="login-identifier" required autoComplete="username" value={identifier} onChange={e => setIdentifier(e.target.value)} placeholder="Masukkan email atau username"/>
+          </> : <>
+            <label>Username</label>
+            <div className="username"><input required autoComplete="username" placeholder="Contoh: andi"/><span>@pshtranting.id</span></div>
+          </>}
           {page === 'daftar' && <>
             <label htmlFor="origin-rayon">Asal rayon</label>
             <input id="origin-rayon" required placeholder="Ketik nama rayon"/>
@@ -130,16 +157,17 @@ export default function App() {
               Pastikan penulisan nama Rayon, Ranting, dan Cabang benar. Perubahan identitas setelah akun dibuat hanya dapat dilakukan oleh Super Admin.
             </small>
           </>}
-          <label>Password</label><input required type="password" autoComplete={page === 'login' ? 'current-password' : 'new-password'} placeholder={page === 'login' ? 'Masukkan password' : 'Buat password'}/>
+          <label>Password</label><input required type="password" autoComplete={page === 'login' ? 'current-password' : 'new-password'} value={page === 'login' ? password : undefined} onChange={page === 'login' ? e => setPassword(e.target.value) : undefined} placeholder={page === 'login' ? 'Masukkan password' : 'Buat password'}/>
           {page === 'daftar' && <>
             <label>Konfirmasi password</label><input required type="password" autoComplete="new-password" placeholder="Ulangi password"/>
           </>}
           {page === 'login' && <div className="forgot-note">Lupa password? Hubungi Super Admin untuk meminta reset akun.</div>}
-          <button className="btn btn-gold submit" type="submit">{page === 'login' ? 'Login' : 'Kirim Pendaftaran'} <ArrowRight size={16}/></button>
+          {page === 'login' && loginMessage && <div className="info-panel" role="status">{loginMessage}</div>}
+          <button className="btn btn-gold submit" type="submit" disabled={page === 'login' && loginBusy}>{loginBusy ? 'Memproses...' : page === 'login' ? 'Login' : 'Kirim Pendaftaran'} <ArrowRight size={16}/></button>
         </form>
         <div className="auth-foot">{page === 'login' ? 'Belum punya akun?' : 'Sudah punya akun?'} <button onClick={() => setPage(page === 'login' ? 'daftar' : 'login')}>{page === 'login' ? 'Daftar sekarang' : 'Login'}</button></div>
         {page === 'daftar' && <div className="pending-note"><b>Setelah mendaftar</b><span>Status akun menjadi Menunggu Persetujuan. Kamu baru dapat login setelah disetujui Super Admin.</span></div>}
-        <small className="notice">Formulir ini masih tampilan awal. Autentikasi belum diaktifkan; jangan masukkan password sungguhan.</small>
+        <small className="notice">{page === 'login' ? 'Login terhubung ke autentikasi Supabase. Akun harus aktif dan disetujui Super Admin.' : 'Pendaftaran akun masih dalam tahap pengembangan dan belum mengirim data ke server.'}</small>
       </div>
     </section>}
 
