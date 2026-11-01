@@ -128,8 +128,7 @@ export default function App() {
     if (!supabase || authUser?.role !== 'super_admin') return;
     setBranchBusy(true); setBranchesError('');
     try {
-      const session = await supabase.auth.getSession();
-      const token = session.data.session?.access_token;
+      const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-branches', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: branchName, type: branchType, parent_id: branchType === 'cabang' ? null : branchParent }) });
       const result = await readApiResponse(response);
@@ -152,8 +151,7 @@ export default function App() {
     setUserActionBusy(userId);
     setUsersError('');
     try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      const token = sessionData.session?.access_token;
+      const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-users', {
         method: 'POST',
