@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
 type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar';
@@ -6,6 +6,36 @@ type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar';
 export default function App() {
   const [page, setPage] = useState<Page>('beranda');
   const [dark, setDark] = useState(false);
+    const [connection, setConnection] = useState('Memeriksa...');
+
+  useEffect(() => {
+    let active = true;
+
+    async function checkConnection() {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/auth/v1/health`,
+          {
+            headers: {
+              apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
+            }
+          }
+        );
+
+        if (active) {
+          setConnection(response.ok ? 'Terhubung' : 'Perlu diperiksa');
+        }
+      } catch {
+        if (active) setConnection('Tidak terhubung');
+      }
+    }
+
+    checkConnection();
+
+    return () => {
+      active = false;
+    };
+  }, []);
   const nav: [Page, string][] = [['beranda', 'Beranda'], ['panduan', 'Panduan Penggunaan'], ['tentang', 'Tentang Aplikasi']];
 
   return <main className={dark ? 'app dark' : 'app'}>
@@ -113,6 +143,10 @@ export default function App() {
       </div>
     </section>}
 
-    <footer><b>PSHT · RANTING TULANGAN</b><span>Sistem Penilaian UKT · V2.0</span></footer>
+    <footer>
+  <b>PSHT · RANTING TULANGAN</b>
+  <span>Sistem Penilaian UKT · V2.0</span>
+  <span>Status Supabase: {connection}</span>
+</footer>
   </main>;
 }
