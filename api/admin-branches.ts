@@ -8,7 +8,7 @@ const reply = (res: Res, status: number, body: unknown) => res.status(status).js
 function getToken(req: Req) {
   const raw = req.headers?.authorization ?? req.headers?.Authorization;
   const value = Array.isArray(raw) ? raw[0] : raw;
-  return typeof value === 'string' ? value.match(/^Bearer\s+(.+)$/i)?.[1] ?? null : null;
+  return typeof value === 'string' ? value.match(/^Bearer\\s+(.+)$/i)?.[1] ?? null : null;
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -80,17 +80,40 @@ export default async function handler(req: Req, res: Res) {
       }
     }
 
-    const { data: duplicate, error: duplicateError } = await admin.from('branches')
-      .select('id').eq('name', name).eq('type', type).eq('parent_id', parentId);
-    if (duplicateError) return reply(res, 503, { error: 'Tidak dapat memeriksa nama wilayah.' });
+    let duplicateQuery = admin.from('branches').select('id').eq('name', name).eq('type', type);
+    duplicateQuery = parentId ? duplicateQuery.eq('parent_id', parentId) : duplicateQuery.is('parent_id', null);
+    const { data: duplicate, error: duplicateError } = await duplicateQuery;
+    if (duplicateError) {
+      console.error('[admin-branches] duplicate check failed:', {
+        code: duplicateError.code,
+        message: duplicateError.message,
+        details: duplicateError.details,
+        hint: duplicateError.hint
+      });
+      return reply(res, 503, {
+        error: 'Tidak dapat memeriksa nama wilayah.',
+        diagnostic: {
+          code: duplicateError.code ?? null,
+          message: duplicateError.message ?? null,
+          hint: duplicateError.hint ?? null
+        }
+      });
+    }
     if ((duplicate ?? []).length) return reply(res, 409, { error: 'Nama wilayah tersebut sudah terdaftar pada induk yang sama.' });
 
     const { data, error } = await admin.from('branches')
       .insert({ name, type, parent_id: parentId, is_active: true })
       .select('id, name, type, parent_id, is_active, created_at').single();
     if (error) {
-      console.error('[admin-branches] insert failed:', error.message);
-      return reply(res, 503, { error: 'Wilayah gagal disimpan.' });
+      console.error('[admin-branches] insert failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint
+      });
+      return reply(res, 503, { error: 'Wilayah gagal disimpan.', diagnostic: {
+        code: error.code ?? null, message: error.message ?? null, hint: error.hint ?? null
+      } });
     }
     return reply(res, 201, { branch: data });
   } catch (error) {
