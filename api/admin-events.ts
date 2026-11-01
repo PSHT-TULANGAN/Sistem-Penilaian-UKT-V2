@@ -82,7 +82,7 @@ export default async function handler(req: Req, res: Res) {
     const branchIds = [...new Set(rawBranches.filter((id): id is string => typeof id === 'string' && id.length > 0))];
 
     if (!name || name.length > 160) return reply(res, 400, { error: 'Nama kegiatan wajib diisi (maksimal 160 karakter).' });
-    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(eventDate) || Number.isNaN(Date.parse(eventDate))) return reply(res, 400, { error: 'Tanggal kegiatan tidak valid.' });
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDate) || Number.isNaN(Date.parse(eventDate))) return reply(res, 400, { error: 'Tanggal kegiatan tidak valid.' });
     if (!['persiapan', 'berlangsung', 'selesai'].includes(String(status))) return reply(res, 400, { error: 'Status kegiatan tidak valid.' });
     if (!levels.length || levels.some((item: any) => !allowedLevels.includes(item.level) || !Number.isFinite(item.passing_percentage) || item.passing_percentage < 0 || item.passing_percentage > 100)) {
       return reply(res, 400, { error: 'Pilih minimal satu tingkat UKT dan pastikan batas kelulusan 0–100%.' });
