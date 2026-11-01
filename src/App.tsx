@@ -133,7 +133,13 @@ export default function App() {
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-branches', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: branchName, type: branchType, parent_id: branchType === 'cabang' ? null : branchParent }) });
       const result = await readApiResponse(response);
-      if (!response.ok) throw new Error(result.error || 'Wilayah gagal disimpan.');
+      if (!response.ok) {
+        const diagnostic = result.diagnostic;
+        const detail = diagnostic
+          ? ` [${diagnostic.code ?? 'NO_CODE'}] ${diagnostic.message ?? ''}${diagnostic.hint ? ' — ' + diagnostic.hint : ''}`
+          : '';
+        throw new Error((result.error || 'Wilayah gagal disimpan.') + detail);
+      }
       setBranchName(''); setBranchParent(''); await openBranchManagement();
     } catch (error) { setBranchesError(error instanceof Error ? error.message : 'Gagal menyimpan wilayah.'); }
     finally { setBranchBusy(false); }
