@@ -6,7 +6,7 @@ type Res = { setHeader(name: string, value: string): void; status(code: number):
 const reply = (res: Res, status: number, body: unknown) => res.status(status).json(body);
 
 function getToken(req: Req) {
-  const raw = req.headers?.authorization ?? req.headers?.Authorization;
+  const raw = req.headers?.authorization ?? req.headers?.Authorization ?? req.headers?.['x-supabase-token'];
   const value = Array.isArray(raw) ? raw[0] : raw;
   return typeof value === 'string' ? value.match(/^Bearer\s+(.+)$/i)?.[1] ?? null : null;
 }
