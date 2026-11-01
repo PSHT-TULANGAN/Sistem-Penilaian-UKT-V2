@@ -6,6 +6,13 @@ type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard'
 type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
 type AuthUser = { id: string; full_name: string; username: string; role: string };
 
+async function readApiResponse(response: Response): Promise<any> {
+  const raw = await response.text();
+  if (!raw) return {};
+  try { return JSON.parse(raw); }
+  catch { return { error: `Server mengirim respons bukan JSON (HTTP ${response.status}): ${raw.slice(0, 240)}` }; }
+}
+
 export default function App() {
   const [page, setPage] = useState<Page>('beranda');
   const [dark, setDark] = useState(false);
@@ -28,7 +35,7 @@ export default function App() {
     setLoginBusy(true);
     try {
       const response = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ identifier, password }) });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) { setLoginMessage(result.error || 'Login gagal. Periksa kembali data akun.'); return; }
       const { error } = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
       if (error) { setLoginMessage('Sesi login tidak dapat disimpan. Silakan coba kembali.'); return; }
@@ -79,7 +86,7 @@ export default function App() {
       const token = sessionData.session?.access_token;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-users', { headers: { Authorization: `Bearer ${token}` } });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Daftar pengguna gagal dimuat.');
       setManagedUsers(result.users ?? []);
     } catch (error) {
@@ -102,7 +109,7 @@ export default function App() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ user_id: userId, action })
       });
-      const result = await response.json();
+      const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Tindakan gagal diproses.');
       await openUserManagement();
     } catch (error) {
