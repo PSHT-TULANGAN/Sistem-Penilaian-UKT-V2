@@ -59,7 +59,8 @@ export default async function handler(req: Req, res: Res) {
 
     if (profile.error || role.error || approval.error) {
       console.error('[admin-users] caller check failed');
-      return reply(res, 503, { error: 'Tidak dapat memverifikasi kewenangan akun.' });
+      console.error('[admin-users] caller query error', { profile: profile.error?.message, role: role.error?.message, approval: approval.error?.message });
+      return reply(res, 503, { error: 'Tidak dapat memverifikasi kewenangan akun.', code: 'CALLER_CHECK_FAILED' });
     }
     if (profile.data?.status !== 'active' || role.data?.role !== 'super_admin' || approval.data?.status !== 'active') {
       return reply(res, 403, { error: 'Hanya Super Admin aktif yang dapat mengelola pengguna.' });
@@ -77,7 +78,9 @@ export default async function handler(req: Req, res: Res) {
           profiles: profiles.error?.message, roles: roles.error?.message,
           approvals: approvals.error?.message, branches: branches.error?.message
         });
-        return reply(res, 503, { error: 'Daftar pengguna belum dapat dimuat.' });
+        const failed = [profiles.error && 'profiles', roles.error && 'user_roles', approvals.error && 'account_approvals', branches.error && 'branches'].filter(Boolean);
+        console.error('[admin-users] list query failed', { failed, profiles: profiles.error?.message, roles: roles.error?.message, approvals: approvals.error?.message, branches: branches.error?.message });
+        return reply(res, 503, { error: 'Gagal membaca tabel: ' + failed.join(', '), code: ' + 'USER_LIST_QUERY_FAILED' });
       }
       const roleMap = new Map((roles.data ?? []).map(item => [item.user_id, item.role]));
       const approvalMap = new Map((approvals.data ?? []).map(item => [item.user_id, item]));
