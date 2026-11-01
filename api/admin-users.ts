@@ -21,7 +21,13 @@ function bearerToken(req: Req): string | null {
   const raw = req.headers?.authorization ?? req.headers?.Authorization;
   const value = Array.isArray(raw) ? raw[0] : raw;
   const match = typeof value === 'string' ? value.match(/^Bearer\s+(.+)$/i) : null;
-  return match?.[1] ?? null;
+  if (match?.[1]) return match[1].trim();
+
+  const customRaw = req.headers?.['x-supabase-token'];
+  const customValue = Array.isArray(customRaw) ? customRaw[0] : customRaw;
+  return typeof customValue === 'string' && customValue.trim()
+    ? customValue.replace(/^Bearer\s+/i, '').trim()
+    : null;
 }
 
 export default async function handler(req: Req, res: Res) {
@@ -82,8 +88,13 @@ export default async function handler(req: Req, res: Res) {
       }
       const roleMap = new Map((roles.data ?? []).map(item => [item.user_id, item.role]));
       const approvalMap = new Map((approvals.data ?? []).map(item => [item.user_id, item]));
-      // Branch metadata is optional; do not block account management when branch lookup is unavailable.
-      const branchMap = new Map<string, { id: string; name: string }>();
+      // Resolve region names for user cards; keep account management available if branch lookup fails.
+      const { data: branchRows, error: branchError } = await admin
+        .from('branches').select('id, name, type, parent_id');
+      if (branchError) {
+        console.error('[admin-users] branch lookup failed:', branchError.message);
+      }
+      const branchMap = new Map((branchRows ?? []).map(item => [item.id, item]));
       const users = (profiles.data ?? []).map(item => ({
         ...item,
         role: roleMap.get(item.id) ?? 'tester',
