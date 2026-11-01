@@ -2,7 +2,8 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from './lib-supabase';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
-type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar';
+type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard';
+type AuthUser = { id: string; full_name: string; username: string; role: string };
 
 export default function App() {
   const [page, setPage] = useState<Page>('beranda');
@@ -12,6 +13,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [loginMessage, setLoginMessage] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -24,7 +26,10 @@ export default function App() {
       if (!response.ok) { setLoginMessage(result.error || 'Login gagal. Periksa kembali data akun.'); return; }
       const { error } = await supabase.auth.setSession({ access_token: result.access_token, refresh_token: result.refresh_token });
       if (error) { setLoginMessage('Sesi login tidak dapat disimpan. Silakan coba kembali.'); return; }
-      setLoginMessage('Login berhasil. Sesi akun telah aktif.');
+      setAuthUser(result.user as AuthUser);
+      setPassword('');
+      setLoginMessage('');
+      setPage('dashboard');
     } catch {
       setLoginMessage('Tidak dapat menghubungi server login. Coba beberapa saat lagi.');
     } finally { setLoginBusy(false); }
@@ -58,6 +63,15 @@ export default function App() {
       active = false;
     };
   }, []);
+  async function handleLogout() {
+    if (supabase) await supabase.auth.signOut();
+    setAuthUser(null);
+    setIdentifier('');
+    setPassword('');
+    setLoginMessage('');
+    setPage('beranda');
+  }
+
   const nav: [Page, string][] = [['beranda', 'Beranda'], ['panduan', 'Panduan Penggunaan'], ['tentang', 'Tentang Aplikasi']];
 
   return <main className={dark ? 'app dark' : 'app'}>
@@ -68,11 +82,27 @@ export default function App() {
       </button>
       <nav>{nav.map(([id, label]) => <button key={id} className={page === id ? 'nav-link active' : 'nav-link'} onClick={() => setPage(id)}>{label}</button>)}</nav>
       <div className="actions">
-        <button className="theme" onClick={() => setDark(!dark)} aria-label="Ganti tema">{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
+        {authUser ? <><button className="btn btn-outline" onClick={() => setPage('dashboard')}>Dashboard</button><button className="btn btn-gold" onClick={handleLogout}>Keluar</button></> : <><button className="theme" onClick={() => setDark(!dark)} aria-label="Ganti tema">{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
         <button className="btn btn-outline" onClick={() => setPage('login')}>Login</button>
-        <button className="btn btn-gold" onClick={() => setPage('daftar')}>Daftar Akun</button>
+        <button className="btn btn-gold" onClick={() => setPage('daftar')}>Daftar Akun</button></>}
       </div>
     </header>
+
+    {page === 'dashboard' && authUser && <section className="content-page page-enter">
+      <div className="eyebrow">AREA PENGELOLAAN · V2.0</div>
+      <h1>Dashboard</h1>
+      <p className="lead">Selamat datang, {authUser.full_name || authUser.username}. Sesi akun berhasil diaktifkan.</p>
+      <div className="dashboard-welcome">
+        <div className="dashboard-avatar"><ShieldCheck size={28}/></div>
+        <div><span className="eyebrow">AKUN AKTIF</span><h2>{authUser.full_name || authUser.username}</h2><p>@{authUser.username} · {authUser.role.replaceAll('_', ' ')}</p></div>
+      </div>
+      <div className="dashboard-grid">
+        <article><Users/><b>Pengelolaan Pengguna</b><p>Kelola akun dan persetujuan pendaftaran pengguna.</p><span>Modul berikutnya</span></article>
+        <article><CalendarDays/><b>Kegiatan UKT</b><p>Kelola kegiatan UKT dan cakupan tingkat penilaian.</p><span>Modul berikutnya</span></article>
+        <article><ClipboardList/><b>Penilaian</b><p>Pantau proses penilaian dan hasil peserta.</p><span>Modul berikutnya</span></article>
+      </div>
+      <div className="info-panel dashboard-notice"><b>Dashboard awal</b><p>Login dan verifikasi peran sudah aktif. Modul pengelolaan di atas belum diaktifkan; fitur akan dibangun dan diuji bertahap sebelum dapat digunakan.</p></div>
+    </section>}
 
     {page === 'beranda' && <>
       <section className="hero page-enter">
