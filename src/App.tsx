@@ -4,7 +4,8 @@ import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDa
 
 type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna' | 'wilayah';
 type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
-type AuthUser = { id: string; full_name: string; username: string; role: string };\ntype Branch = { id: string; name: string; type: 'cabang' | 'ranting' | 'rayon'; parent_id: string | null; is_active: boolean; created_at: string };
+type AuthUser = { id: string; full_name: string; username: string; role: string };
+type Branch = { id: string; name: string; type: 'cabang' | 'ranting' | 'rayon'; parent_id: string | null; is_active: boolean; created_at: string };
 
 async function readApiResponse(response: Response): Promise<any> {
   const raw = await response.text();
@@ -26,7 +27,14 @@ export default function App() {
   const [usersLoading, setUsersLoading] = useState(false);
   const [usersError, setUsersError] = useState('');
   const [usersQuery, setUsersQuery] = useState('');
-  const [userActionBusy, setUserActionBusy] = useState('');\n  const [branches, setBranches] = useState<Branch[]>([]);\n  const [branchesLoading, setBranchesLoading] = useState(false);\n  const [branchesError, setBranchesError] = useState('');\n  const [branchName, setBranchName] = useState('');\n  const [branchType, setBranchType] = useState<'cabang' | 'ranting' | 'rayon'>('cabang');\n  const [branchParent, setBranchParent] = useState('');\n  const [branchBusy, setBranchBusy] = useState(false);
+  const [userActionBusy, setUserActionBusy] = useState('');
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [branchesError, setBranchesError] = useState('');
+  const [branchName, setBranchName] = useState('');
+  const [branchType, setBranchType] = useState<'cabang' | 'ranting' | 'rayon'>('cabang');
+  const [branchParent, setBranchParent] = useState('');
+  const [branchBusy, setBranchBusy] = useState(false);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
