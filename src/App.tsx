@@ -14,7 +14,12 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [loginMessage, setLoginMessage] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);\n  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);\n  const [usersLoading, setUsersLoading] = useState(false);\n  const [usersError, setUsersError] = useState('');\n  const [usersQuery, setUsersQuery] = useState('');\n  const [userActionBusy, setUserActionBusy] = useState('');
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [usersQuery, setUsersQuery] = useState('');
+  const [userActionBusy, setUserActionBusy] = useState('');
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
