@@ -2,7 +2,8 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from './lib-supabase';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
-type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard';
+type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna';
+type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
 type AuthUser = { id: string; full_name: string; username: string; role: string };
 
 export default function App() {
@@ -13,7 +14,7 @@ export default function App() {
   const [password, setPassword] = useState('');
   const [loginMessage, setLoginMessage] = useState('');
   const [loginBusy, setLoginBusy] = useState(false);
-  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);\n  const [managedUsers, setManagedUsers] = useState<ManagedUser[]>([]);\n  const [usersLoading, setUsersLoading] = useState(false);\n  const [usersError, setUsersError] = useState('');\n  const [usersQuery, setUsersQuery] = useState('');\n  const [userActionBusy, setUserActionBusy] = useState('');
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,6 +64,47 @@ export default function App() {
       active = false;
     };
   }, []);
+  async function openUserManagement() {
+    if (authUser?.role !== 'super_admin' || !supabase) return;
+    setPage('pengguna');
+    setUsersLoading(true);
+    setUsersError('');
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-users', { headers: { Authorization: `Bearer ${token}` } });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Daftar pengguna gagal dimuat.');
+      setManagedUsers(result.users ?? []);
+    } catch (error) {
+      setUsersError(error instanceof Error ? error.message : 'Terjadi kesalahan saat memuat pengguna.');
+    } finally { setUsersLoading(false); }
+  }
+
+  async function handleUserAction(userId: string, action: 'approve' | 'reject' | 'suspend') {
+    if (!supabase || authUser?.role !== 'super_admin') return;
+    const labels = { approve: 'menyetujui', reject: 'menolak', suspend: 'menangguhkan' };
+    if (!window.confirm(`Yakin ingin ${labels[action]} akun ini?`)) return;
+    setUserActionBusy(userId);
+    setUsersError('');
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData.session?.access_token;
+      if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ user_id: userId, action })
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Tindakan gagal diproses.');
+      await openUserManagement();
+    } catch (error) {
+      setUsersError(error instanceof Error ? error.message : 'Terjadi kesalahan saat memperbarui akun.');
+    } finally { setUserActionBusy(''); }
+  }
+
   async function handleLogout() {
     if (supabase) await supabase.auth.signOut();
     setAuthUser(null);
@@ -97,11 +139,40 @@ export default function App() {
         <div><span className="eyebrow">AKUN AKTIF</span><h2>{authUser.full_name || authUser.username}</h2><p>@{authUser.username} · {authUser.role.replaceAll('_', ' ')}</p></div>
       </div>
       <div className="dashboard-grid">
-        <article><Users/><b>Pengelolaan Pengguna</b><p>Kelola akun dan persetujuan pendaftaran pengguna.</p><span>Modul berikutnya</span></article>
-        <article><CalendarDays/><b>Kegiatan UKT</b><p>Kelola kegiatan UKT dan cakupan tingkat penilaian.</p><span>Modul berikutnya</span></article>
-        <article><ClipboardList/><b>Penilaian</b><p>Pantau proses penilaian dan hasil peserta.</p><span>Modul berikutnya</span></article>
+        {authUser.role === 'super_admin' ? <button className="dashboard-module" onClick={openUserManagement}><Users/><b>Pengelolaan Pengguna</b><p>Kelola akun, role, dan persetujuan pendaftaran pengguna.</p><span>Buka modul <ArrowRight size={14}/></span></button> : <article><Users/><b>Pengelolaan Pengguna</b><p>Modul ini hanya dapat diakses Super Admin.</p><span>Akses terbatas</span></article>}
+        <article><CalendarDays/><b>Kegiatan UKT</b><p>Kelola kegiatan UKT dan cakupan tingkat penilaian.</p><span>Belum diaktifkan</span></article>
+        <article><ClipboardList/><b>Penilaian</b><p>Pantau proses penilaian dan hasil peserta.</p><span>Belum diaktifkan</span></article>
       </div>
-      <div className="info-panel dashboard-notice"><b>Dashboard awal</b><p>Login dan verifikasi peran sudah aktif. Modul pengelolaan di atas belum diaktifkan; fitur akan dibangun dan diuji bertahap sebelum dapat digunakan.</p></div>
+      <div className="info-panel dashboard-notice"><b>Dashboard V2.0</b><p>Modul Pengelolaan Pengguna tersedia untuk Super Admin. Modul Kegiatan UKT dan Penilaian masih dalam tahap pengembangan.</p></div>
+    </section>}
+
+    {page === 'pengguna' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
+      <button className="btn btn-outline" onClick={() => setPage('dashboard')}>← Kembali ke Dashboard</button>
+      <div className="eyebrow" style={{marginTop:28}}>ADMINISTRASI SISTEM</div>
+      <h1>Pengelolaan Pengguna</h1>
+      <p className="lead">Daftar akun, status persetujuan, dan kewenangan pengguna.</p>
+      <div className="users-toolbar">
+        <input aria-label="Cari pengguna" value={usersQuery} onChange={e => setUsersQuery(e.target.value)} placeholder="Cari nama atau username..." />
+        <button className="btn btn-outline" onClick={openUserManagement} disabled={usersLoading}>Muat ulang</button>
+      </div>
+      {usersError && <div className="info-panel users-error" role="alert">{usersError}</div>}
+      {usersLoading ? <div className="empty-state">Memuat daftar pengguna...</div> : <div className="users-list">
+        {managedUsers.filter(user => `${user.full_name} ${user.username}`.toLowerCase().includes(usersQuery.toLowerCase())).map(user => <article className="user-row" key={user.id}>
+          <div className="user-main">
+            <div className="user-avatar"><Users size={19}/></div>
+            <div><b>{user.full_name}</b><span>@{user.username} · {user.role.replaceAll('_', ' ')}</span><small>{[user.rayon, user.ranting, user.cabang].filter(Boolean).join(' · ') || 'Wilayah belum ditentukan'}</small></div>
+          </div>
+          <div className="user-status"><span className={`status-pill status-${user.status}`}>{user.status}</span><small>Persetujuan: {user.approval?.status ?? 'tidak ada'}</small></div>
+          <div className="user-actions">
+            {user.role !== 'super_admin' && user.status === 'pending' && <><button className="btn btn-gold" disabled={userActionBusy === user.id} onClick={() => handleUserAction(user.id, 'approve')}>Setujui</button><button className="btn btn-outline" disabled={userActionBusy === user.id} onClick={() => handleUserAction(user.id, 'reject')}>Tolak</button></>}
+            {user.role !== 'super_admin' && user.status === 'active' && <button className="btn btn-outline" disabled={userActionBusy === user.id} onClick={() => handleUserAction(user.id, 'suspend')}>Tangguhkan</button>}
+            {user.role !== 'super_admin' && user.status === 'suspended' && <span className="muted-label">Hubungi administrator untuk aktivasi ulang</span>}
+          </div>
+        </article>)}
+        {managedUsers.length === 0 && <div className="empty-state"><Users size={24}/><b>Belum ada data pengguna</b></div>}
+        {managedUsers.length > 0 && managedUsers.filter(user => `${user.full_name} ${user.username}`.toLowerCase().includes(usersQuery.toLowerCase())).length === 0 && <div className="empty-state">Pengguna tidak ditemukan.</div>}
+      </div>}
+      <div className="info-panel dashboard-notice"><b>Perlindungan akun</b><p>Akun Super Admin tidak dapat diubah statusnya melalui modul ini. Perubahan status pengguna dicatat dengan identitas Super Admin dan waktu peninjauan.</p></div>
     </section>}
 
     {page === 'beranda' && <>
