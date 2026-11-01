@@ -1,5 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 
+declare const process: { env: Record<string, string | undefined> };
+
 type Req = { method?: string; body?: { identifier?: unknown; password?: unknown } };
 type Res = { setHeader(name: string, value: string): void; status(code: number): Res; json(body: unknown): void };
 
