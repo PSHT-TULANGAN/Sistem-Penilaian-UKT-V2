@@ -80,7 +80,7 @@ export default async function handler(req: Req, res: Res) {
         });
         const failed = [profiles.error && 'profiles', roles.error && 'user_roles', approvals.error && 'account_approvals', branches.error && 'branches'].filter(Boolean);
         console.error('[admin-users] list query failed', { failed, profiles: profiles.error?.message, roles: roles.error?.message, approvals: approvals.error?.message, branches: branches.error?.message });
-        return reply(res, 503, { error: 'Gagal membaca tabel: ' + failed.join(', '), code: ' + 'USER_LIST_QUERY_FAILED' });
+        return reply(res, 503, { error: 'Gagal membaca tabel: ' + failed.join(', '), code: 'USER_LIST_QUERY_FAILED' });
       }
       const roleMap = new Map((roles.data ?? []).map(item => [item.user_id, item.role]));
       const approvalMap = new Map((approvals.data ?? []).map(item => [item.user_id, item]));
