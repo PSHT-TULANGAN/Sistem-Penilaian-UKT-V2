@@ -2,10 +2,11 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { supabase } from './lib-supabase';
 import { Moon, Sun, ShieldCheck, ClipboardList, BookOpen, ArrowRight, CalendarDays, Images, Users, Award, ChevronRight } from 'lucide-react';
 
-type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna' | 'wilayah';
+type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard' | 'pengguna' | 'wilayah' | 'kegiatan';
 type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
 type AuthUser = { id: string; full_name: string; username: string; role: string };
 type Branch = { id: string; name: string; type: 'cabang' | 'ranting' | 'rayon'; parent_id: string | null; is_active: boolean; created_at: string };
+type UktEvent = { id: string; name: string; event_date: string; status: string; levels: { level: string; passing_percentage: number }[]; branches: { id: string; name: string; type: string }[] };
 
 async function readApiResponse(response: Response): Promise<any> {
   const raw = await response.text();
@@ -36,6 +37,15 @@ export default function App() {
   const [branchType, setBranchType] = useState<'cabang' | 'ranting' | 'rayon'>('cabang');
   const [branchParent, setBranchParent] = useState('');
   const [branchBusy, setBranchBusy] = useState(false);
+  const [events, setEvents] = useState<UktEvent[]>([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsError, setEventsError] = useState('');
+  const [eventName, setEventName] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [eventLevels, setEventLevels] = useState<string[]>(['polos', 'jambon', 'hijau']);
+  const [eventPass, setEventPass] = useState<Record<string, string>>({ polos: '50', jambon: '50', hijau: '50' });
+  const [eventBranches, setEventBranches] = useState<string[]>([]);
+  const [eventBusy, setEventBusy] = useState(false);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -144,6 +154,48 @@ export default function App() {
     finally { setBranchBusy(false); }
   }
 
+
+  async function openEvents() {
+    if (!supabase || authUser?.role !== 'super_admin') return;
+    setPage('kegiatan'); setEventsLoading(true); setEventsError('');
+    try {
+      if (!authToken) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-events', { headers: { Authorization: 'Bearer ' + authToken, 'x-supabase-token': authToken } });
+      const result = await readApiResponse(response);
+      if (!response.ok) throw new Error(result.error || 'Daftar kegiatan gagal dimuat.');
+      setEvents(result.events ?? []);
+    } catch (error) { setEventsError(error instanceof Error ? error.message : 'Gagal memuat kegiatan.'); }
+    finally { setEventsLoading(false); }
+  }
+
+  async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!supabase || authUser?.role !== 'super_admin') return;
+    setEventBusy(true); setEventsError('');
+    try {
+      if (!authToken) throw new Error('Sesi login berakhir. Silakan login kembali.');
+      const response = await fetch('/api/admin-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + authToken, 'x-supabase-token': authToken },
+        body: JSON.stringify({
+          name: eventName, event_date: eventDate, status: 'persiapan',
+          levels: eventLevels.map(level => ({ level, passing_percentage: Number(eventPass[level] ?? 50) })),
+          branch_ids: eventBranches
+        })
+      });
+      const result = await readApiResponse(response);
+      if (!response.ok) {
+        const d = result.diagnostic;
+        throw new Error((result.error || 'Kegiatan gagal dibuat.') + (d ? ' [' + (d.code ?? '') + '] ' + (d.message ?? '') : ''));
+      }
+      setEventName(''); setEventDate(''); setEventBranches([]);
+      setEventLevels(['polos', 'jambon', 'hijau']);
+      setEventPass({ polos: '50', jambon: '50', hijau: '50' });
+      await openEvents();
+    } catch (error) { setEventsError(error instanceof Error ? error.message : 'Gagal menyimpan kegiatan.'); }
+    finally { setEventBusy(false); }
+  }
+
   async function handleUserAction(userId: string, action: 'approve' | 'reject' | 'suspend') {
     if (!supabase || authUser?.role !== 'super_admin') return;
     const labels = { approve: 'menyetujui', reject: 'menolak', suspend: 'menangguhkan' };
@@ -203,7 +255,7 @@ export default function App() {
       <div className="dashboard-grid">
         {authUser.role === 'super_admin' ? <button className="dashboard-module" onClick={openUserManagement}><Users/><b>Pengelolaan Pengguna</b><p>Kelola akun, role, dan persetujuan pendaftaran pengguna.</p><span>Buka modul <ArrowRight size={14}/></span></button> : <article><Users/><b>Pengelolaan Pengguna</b><p>Modul ini hanya dapat diakses Super Admin.</p><span>Akses terbatas</span></article>}
         {authUser.role === 'super_admin' && <button className="dashboard-module" onClick={openBranchManagement}><ShieldCheck/><b>Pengelolaan Wilayah</b><p>Atur hierarki Cabang, Ranting, dan Rayon.</p><span>Buka modul <ArrowRight size={14}/></span></button>}
-        <article><CalendarDays/><b>Kegiatan UKT</b><p>Kelola kegiatan UKT dan cakupan tingkat penilaian.</p><span>Belum diaktifkan</span></article>
+        {authUser.role === 'super_admin' ? <button className="dashboard-module" onClick={openEvents}><CalendarDays/><b>Kegiatan UKT</b><p>Buat kegiatan, tentukan tingkat UKT, batas kelulusan, dan wilayah peserta.</p><span>Buka modul <ArrowRight size={14}/></span></button> : <article><CalendarDays/><b>Kegiatan UKT</b><p>Kelola kegiatan UKT dan cakupan tingkat penilaian.</p><span>Menunggu pengaturan akses</span></article>}
         <article><ClipboardList/><b>Penilaian</b><p>Pantau proses penilaian dan hasil peserta.</p><span>Belum diaktifkan</span></article>
       </div>
       <div className="info-panel dashboard-notice"><b>Dashboard V2.0</b><p>Modul Pengelolaan Pengguna tersedia untuk Super Admin. Modul Kegiatan UKT dan Penilaian masih dalam tahap pengembangan.</p></div>
@@ -238,6 +290,29 @@ export default function App() {
       <div className="info-panel dashboard-notice"><b>Perlindungan akun</b><p>Akun Super Admin tidak dapat diubah statusnya melalui modul ini. Perubahan status pengguna dicatat dengan identitas Super Admin dan waktu peninjauan.</p></div>
     </section>}
 
+    {page === 'kegiatan' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
+      <button className="btn btn-outline" onClick={() => setPage('dashboard')}>← Kembali ke Dashboard</button>
+      <div className="eyebrow" style={{marginTop:28}}>PENGELOLAAN KEGIATAN</div><h1>Kegiatan UKT</h1>
+      <p className="lead">Buat kegiatan UKT, tentukan tingkat yang diujikan, batas kelulusan, dan wilayah yang menjadi cakupan kegiatan.</p>
+      {eventsError && <div className="info-panel users-error" role="alert">{eventsError}</div>}
+      <form className="branch-form" onSubmit={handleCreateEvent}>
+        <label htmlFor="event-name">Nama kegiatan</label><input id="event-name" required maxLength={160} value={eventName} onChange={e => setEventName(e.target.value)} placeholder="Contoh: UKT Jambon dan Hijau 2026"/>
+        <label htmlFor="event-date">Tanggal kegiatan</label><input id="event-date" required type="date" value={eventDate} onChange={e => setEventDate(e.target.value)}/>
+        <label>Tingkat UKT dan batas kelulusan</label>
+        {(['polos','jambon','hijau'] as const).map(level => <div className="event-level-row" key={level}>
+          <label><input type="checkbox" checked={eventLevels.includes(level)} onChange={e => setEventLevels(current => e.target.checked ? [...current, level] : current.filter(item => item !== level))}/> {level.charAt(0).toUpperCase() + level.slice(1)}</label>
+          <div><input aria-label={'Batas kelulusan ' + level} type="number" min="0" max="100" step="0.01" disabled={!eventLevels.includes(level)} value={eventPass[level] ?? '50'} onChange={e => setEventPass(current => ({...current, [level]: e.target.value}))}/> <span>%</span></div>
+        </div>)}
+        <label>Wilayah peserta</label>
+        <div className="event-branch-options">{branches.filter(b => b.is_active).map(branch => <label key={branch.id}><input type="checkbox" checked={eventBranches.includes(branch.id)} onChange={e => setEventBranches(current => e.target.checked ? [...current, branch.id] : current.filter(id => id !== branch.id))}/>{branch.type.charAt(0).toUpperCase() + branch.type.slice(1)} — {branch.name}</label>)}</div>
+        <button className="btn btn-gold" type="submit" disabled={eventBusy || !eventLevels.length || !eventBranches.length}>{eventBusy ? 'Menyimpan...' : 'Buat Kegiatan UKT'}</button>
+      </form>
+      <div className="users-toolbar"><button className="btn btn-outline" onClick={openEvents} disabled={eventsLoading}>Muat ulang kegiatan</button><button className="btn btn-outline" onClick={openBranchManagement}>Muat ulang wilayah</button></div>
+      {eventsLoading ? <div className="empty-state">Memuat kegiatan...</div> : <div className="users-list">{events.map(item => <article className="user-row" key={item.id}>
+        <div className="user-main"><div className="user-avatar"><CalendarDays size={19}/></div><div><b>{item.name}</b><span>{new Date(item.event_date + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })} · {item.status}</span><small>{item.levels.map(level => level.level.charAt(0).toUpperCase() + level.level.slice(1) + ' (' + level.passing_percentage + '%)').join(' · ')}</small><small>{item.branches.map(branch => branch.name).join(', ')}</small></div></div>
+      </article>)}{events.length === 0 && <div className="empty-state">Belum ada kegiatan UKT.</div>}</div>}
+      <div className="info-panel dashboard-notice"><b>Status tahap pertama</b><p>Pembuatan dan penayangan kegiatan sudah disiapkan. Pengubahan, penghapusan, pengelolaan peserta, dan proses penilaian akan dibuat pada tahap berikutnya.</p></div>
+    </section>}
     {page === 'wilayah' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
       <button className="btn btn-outline" onClick={() => setPage('dashboard')}>← Kembali ke Dashboard</button>
       <div className="eyebrow" style={{marginTop:28}}>ADMINISTRASI SISTEM</div><h1>Pengelolaan Wilayah</h1>
