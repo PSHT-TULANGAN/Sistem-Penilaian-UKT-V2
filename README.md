@@ -15,3 +15,11 @@ Fondasi awal V2.0. Repository lama tidak disentuh.
 5. Jalankan `npm run dev`.
 
 **Status:** fondasi antarmuka. Belum ada autentikasi aktif, koneksi database, SQL produksi, atau RLS. Jangan gunakan data peserta nyata sebelum backend dan keamanannya selesai diuji.
+
+
+## Frontend update
+Public homepage now includes activity and gallery empty states, role-based guide cards, responsive sections, and updated about information. These are frontend placeholders; no event or gallery data is connected yet. Login and registration remain non-functional until Supabase authentication is implemented.
+
+
+## Login and registration UI update
+Login and public registration screens have been refined. Registration collects full name, nickname, username, origin branch, password, and confirmation. The UI explains Super Admin approval and password-reset contact flow. Forms are intentionally non-functional until Supabase authentication and server-side approval controls are implemented.
