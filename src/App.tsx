@@ -94,7 +94,7 @@ export default function App() {
     try {
       const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
-      const response = await fetch('/api/admin-users', { headers: { Authorization: `Bearer ${token}` } });
+      const response = await fetch('/api/admin-users', { headers: { Authorization: `Bearer ${token}`, 'x-supabase-token': token } });
       const result = await readApiResponse(response);
       if (!response.ok) throw new Error(result.error || 'Daftar pengguna gagal dimuat.');
       setManagedUsers(result.users ?? []);
@@ -109,7 +109,7 @@ export default function App() {
     try {
       const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
-      const response = await fetch('/api/admin-branches', { headers: { Authorization: 'Bearer ' + token } });
+      const response = await fetch('/api/admin-branches', { headers: { Authorization: 'Bearer ' + token, 'x-supabase-token': token } });
       const result = await readApiResponse(response);
       if (!response.ok) {
         const diagnostic = result.diagnostic;
@@ -130,7 +130,7 @@ export default function App() {
     try {
       const token = authToken;
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
-      const response = await fetch('/api/admin-branches', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }, body: JSON.stringify({ name: branchName, type: branchType, parent_id: branchType === 'cabang' ? null : branchParent }) });
+      const response = await fetch('/api/admin-branches', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token, 'x-supabase-token': token }, body: JSON.stringify({ name: branchName, type: branchType, parent_id: branchType === 'cabang' ? null : branchParent }) });
       const result = await readApiResponse(response);
       if (!response.ok) {
         const diagnostic = result.diagnostic;
@@ -155,7 +155,7 @@ export default function App() {
       if (!token) throw new Error('Sesi login berakhir. Silakan login kembali.');
       const response = await fetch('/api/admin-users', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, 'x-supabase-token': token },
         body: JSON.stringify({ user_id: userId, action })
       });
       const result = await readApiResponse(response);
