@@ -6,7 +6,8 @@ type Page = 'beranda' | 'panduan' | 'tentang' | 'login' | 'daftar' | 'dashboard'
 type ManagedUser = { id: string; username: string; full_name: string; nickname: string | null; status: string; role: string; must_change_password: boolean; created_at: string; rayon: string | null; ranting: string | null; cabang: string | null; approval: { status: string; reviewed_at: string | null; notes: string | null } | null };
 type AuthUser = { id: string; full_name: string; username: string; role: string };
 type Branch = { id: string; name: string; type: 'cabang' | 'ranting' | 'rayon'; parent_id: string | null; is_active: boolean; created_at: string };
-type UktEvent = { id: string; name: string; event_date: string; status: string; levels: { level: string; passing_percentage: number }[]; branches: { id: string; name: string; type: string }[] };\ntype Participant = { id: string; event_id: string; level: string; branch_id: string; participant_number: number; full_name: string; branch: { id: string; name: string; type: string } | null };
+type UktEvent = { id: string; name: string; event_date: string; status: string; levels: { level: string; passing_percentage: number }[]; branches: { id: string; name: string; type: string }[] };
+type Participant = { id: string; event_id: string; level: string; branch_id: string; participant_number: number; full_name: string; branch: { id: string; name: string; type: string } | null };
 
 async function readApiResponse(response: Response): Promise<any> {
   const raw = await response.text();
@@ -45,7 +46,15 @@ export default function App() {
   const [eventLevels, setEventLevels] = useState<string[]>(['polos', 'jambon', 'hijau']);
   const [eventPass, setEventPass] = useState<Record<string, string>>({ polos: '50', jambon: '50', hijau: '50' });
   const [eventBranches, setEventBranches] = useState<string[]>([]);
-  const [eventBusy, setEventBusy] = useState(false);\n  const [selectedEventId, setSelectedEventId] = useState('');\n  const [participants, setParticipants] = useState<Participant[]>([]);\n  const [participantsLoading, setParticipantsLoading] = useState(false);\n  const [participantsError, setParticipantsError] = useState('');\n  const [participantName, setParticipantName] = useState('');\n  const [participantLevel, setParticipantLevel] = useState('');\n  const [participantBranch, setParticipantBranch] = useState('');\n  const [participantBusy, setParticipantBusy] = useState(false);
+  const [eventBusy, setEventBusy] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participantsLoading, setParticipantsLoading] = useState(false);
+  const [participantsError, setParticipantsError] = useState('');
+  const [participantName, setParticipantName] = useState('');
+  const [participantLevel, setParticipantLevel] = useState('');
+  const [participantBranch, setParticipantBranch] = useState('');
+  const [participantBusy, setParticipantBusy] = useState(false);
 
   async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -346,7 +355,8 @@ export default function App() {
       <div className="users-toolbar"><button className="btn btn-outline" onClick={openEvents} disabled={eventsLoading}>Muat ulang kegiatan</button><button className="btn btn-outline" onClick={openBranchManagement}>Muat ulang wilayah</button></div>
       {eventsLoading ? <div className="empty-state">Memuat kegiatan...</div> : <div className="users-list">{events.map(item => <article className="user-row" key={item.id}>
         <div className="user-main"><div className="user-avatar"><CalendarDays size={19}/></div><div><b>{item.name}</b><span>{new Date(item.event_date + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'long', year:'numeric' })} · {item.status}</span><small>{item.levels.map(level => level.level.charAt(0).toUpperCase() + level.level.slice(1) + ' (' + level.passing_percentage + '%)').join(' · ')}</small><small>{item.branches.map(branch => branch.name).join(', ')}</small></div></div>
-        <div className="user-actions"><button className="btn btn-gold" onClick={() => openParticipants(item.id)}>Kelola Peserta</button></div>\n      </article>)}{events.length === 0 && <div className="empty-state">Belum ada kegiatan UKT.</div>}</div>}
+        <div className="user-actions"><button className="btn btn-gold" onClick={() => openParticipants(item.id)}>Kelola Peserta</button></div>
+      </article>)}{events.length === 0 && <div className="empty-state">Belum ada kegiatan UKT.</div>}</div>}
       <div className="info-panel dashboard-notice"><b>Status tahap pertama</b><p>Pembuatan dan penayangan kegiatan sudah disiapkan. Pengubahan, penghapusan, pengelolaan peserta, dan proses penilaian akan dibuat pada tahap berikutnya.</p></div>
     </section>}
     {page === 'peserta' && authUser && authUser.role === 'super_admin' && <section className="content-page page-enter">
